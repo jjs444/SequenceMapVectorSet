@@ -33,6 +33,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(boost_pool)
 
+FetchContent_Declare(
+  boost_config
+  GIT_REPOSITORY https://github.com/boostorg/config.git
+  GIT_TAG master
+)
+FetchContent_MakeAvailable(boost_config)
+
 # --- SubDirectories ---
 add_subdirectory(src)
 add_subdirectory(test)

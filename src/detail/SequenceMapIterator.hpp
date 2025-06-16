@@ -1,0 +1,73 @@
+#pragma once
+#include <vector>
+#include <iterator>
+
+template<typename K, typename V>
+class SequenceMap;
+
+namespace detail {
+    template<typename K, typename V, typename VecIter>
+    class SequenceMapIterator {
+    public:
+        // Iterator traits (required for standard library compatibility)
+        using iterator_category = std::bidirectional_iterator_tag;
+        using value_type = typename SequenceMap<K, V>::value_type;
+        using difference_type = typename SequenceMap<K, V>::difference_type;
+        using pointer = typename SequenceMap<K, V>::pointer;
+        using reference = typename SequenceMap<K, V>::reference;
+
+        SequenceMapIterator() = default;
+
+        // Conversion from non-const to const iterator
+        operator SequenceMapIterator<K, V, typename std::vector<pointer>::const_iterator>() const {
+            return SequenceMapIterator<K, V, typename std::vector<pointer>::const_iterator>(current_it_);
+        }
+
+        reference operator*() const {
+            return *(*current_it_);
+        }
+
+        pointer operator->() const {
+            return *current_it_;
+        }
+
+        SequenceMapIterator& operator++() {
+            ++current_it_;
+            return *this;
+        }
+
+        SequenceMapIterator operator++(int) {
+            SequenceMapIterator temp = *this;
+            ++(*this);
+            return temp;
+        }
+
+        SequenceMapIterator& operator--() {
+            --current_it_;
+            return *this;
+        }
+
+        SequenceMapIterator operator--(int) {
+            SequenceMapIterator temp = *this;
+            --(*this);
+            return temp;
+        }
+
+        bool operator==(const SequenceMapIterator& other) const {
+            return current_it_ == other.current_it_;
+        }
+
+        bool operator!=(const SequenceMapIterator& other) const {
+            return current_it_ != other.current_it_;
+        }
+
+    private:
+        VecIter current_it_;
+
+        friend class SequenceMap<K, V>;
+
+        // Private constructor for use by SequenceMap
+        SequenceMapIterator(VecIter it) : current_it_(it) {}
+
+    };
+}

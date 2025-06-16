@@ -1,0 +1,31 @@
+﻿# CMake build artifacts
+build/
+CMakeFiles/
+Testing/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+**/.vs/
+
+# Visual Studio and Windows
+**/.vs/
+*.vcxproj*
+*.sln
+*.user
+*.obj
+*.exe
+*.pdb
+*.log
+*.ipch
+*.opensdf
+*.tlog
+
+# macOS / Linux
+*.DS_Store
+*.out
+
+# CMake-generated IDE files
+CMakeSettings.json
+
+# VS Code
+.vscode/

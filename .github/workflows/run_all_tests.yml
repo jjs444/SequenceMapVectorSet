@@ -32,4 +32,10 @@ jobs:
         run:  ctest --test-dir build -R "^(smvs_unit_tests)$" --output-on-failure
 
       - name: Run Benchmarks
-        run: ./build/perf_test/SequenceMapVectorSetPerf.exe --benchmark_format=json --benchmark_out=benchmarks.json
+        run: ./build/perf_test/SequenceMapVectorSetPerf --benchmark_format=json --benchmark_out=benchmarks.json
+
+      - name: Upload Benchmark Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmarks
+          path: benchmarks.json

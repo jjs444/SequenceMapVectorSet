@@ -26,12 +26,51 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(benchmark)
 
 # ---- Boost (Header-only) ----
-FetchContent_Declare(
-  boost_pool
-  GIT_REPOSITORY https://github.com/boostorg/pool.git
-  GIT_TAG master
+# ick wish I could just fetch stuff needed for boost_pool easily but its a pain
+FetchContent_Declare(boost_assert
+  GIT_REPOSITORY https://github.com/boostorg/assert.git
+  GIT_TAG boost-1.84.0
 )
-FetchContent_MakeAvailable(boost_pool)
+
+FetchContent_Declare(boost_config
+  GIT_REPOSITORY https://github.com/boostorg/config.git
+  GIT_TAG boost-1.84.0
+)
+
+FetchContent_Declare(boost_integer
+  GIT_REPOSITORY https://github.com/boostorg/integer.git
+  GIT_TAG boost-1.84.0
+)
+
+FetchContent_Declare(boost_throw_exception
+  GIT_REPOSITORY https://github.com/boostorg/throw_exception.git
+  GIT_TAG boost-1.84.0
+)
+
+FetchContent_Declare(boost_type_traits
+  GIT_REPOSITORY https://github.com/boostorg/type_traits.git
+  GIT_TAG boost-1.84.0
+)
+
+FetchContent_Declare(boost_winapi
+  GIT_REPOSITORY https://github.com/boostorg/winapi.git
+  GIT_TAG boost-1.84.0
+)
+
+FetchContent_Declare(boost_pool
+  GIT_REPOSITORY https://github.com/boostorg/pool.git
+  GIT_TAG boost-1.84.0
+)
+
+FetchContent_MakeAvailable(
+  boost_assert
+  boost_config
+  boost_integer
+  boost_throw_exception
+  boost_type_traits
+  boost_winapi
+  boost_pool
+)
 
 # --- SubDirectories ---
 add_subdirectory(src)

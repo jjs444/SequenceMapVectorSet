@@ -11,24 +11,24 @@ namespace detail {
     public:
         // Iterator traits (required for standard library compatibility)
         using iterator_category = std::bidirectional_iterator_tag;
-        using value_type = typename std::iterator_traits<VecIter>::value_type;
-        using difference_type = typename std::iterator_traits<VecIter>::difference_type;
-        using pointer = typename std::iterator_traits<VecIter>::pointer;
-        using reference = typename std::iterator_traits<VecIter>::reference;
+        using value_type = typename SequenceMap<K, V>::value_type;
+        using difference_type = typename SequenceMap<K, V>::difference_type;
+        using pointer = typename SequenceMap<K, V>::pointer;
+        using reference = typename SequenceMap<K, V>::reference;
 
         SequenceMapIterator() = default;
 
         // Conversion from non-const to const iterator
-        operator SequenceMapIterator<K, V, typename std::vector<value_type>::const_iterator>() const {
-            return SequenceMapIterator<K, V, typename std::vector<value_type>::const_iterator>(current_it_);
+        operator SequenceMapIterator<K, V, typename std::vector<pointer>::const_iterator>() const {
+            return SequenceMapIterator<K, V, typename std::vector<pointer>::const_iterator>(current_it_);
         }
 
         reference operator*() const {
-            return *current_it_;
+            return *(*current_it_);
         }
 
         pointer operator->() const {
-            return &(*current_it_);
+            return *current_it_;
         }
 
         SequenceMapIterator& operator++() {

@@ -20,6 +20,9 @@ Makefile
 *.opensdf
 *.tlog
 
+# Perf-test artifacts
+benchmarks.json
+
 # macOS / Linux
 *.DS_Store
 *.out

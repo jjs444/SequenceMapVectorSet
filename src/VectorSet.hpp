@@ -31,7 +31,6 @@
 template<typename T, typename Compare = std::less<T>>
 class VectorSet {
 public:
-    // --- Public Member Types ---
     using value_type = T;
     using size_type = typename std::vector<T>::size_type;
     using difference_type = typename std::vector<T>::difference_type;
@@ -113,7 +112,7 @@ public:
 
         iterator it = lower_bound(value_to_insert);
 
-        if (it != end() && !comp(value_to_insert, *it) && !comp(*it, value_to_insert)) {
+        if (it != end() && !comp(value_to_insert, *it)) {
             // Element that compares equivalent already exists.
             return { it, false };
         }
@@ -179,11 +178,9 @@ public:
      * Complexity: O(1)
      */
     void swap(VectorSet& other) noexcept {
-        using std::swap;
-        swap(data, other.data);
-        swap(comp, other.comp);
+        data.swap(other.data);
+        std::swap(comp, other.comp);
     }
-
 
     // --- Lookup ---
 
@@ -194,18 +191,18 @@ public:
      */
     iterator find(const value_type& value) {
         iterator it = lower_bound(value);
-        if (it != end() && !comp(value, *it) && !comp(*it, value)) {
-            return it; // Found the element
+        if (it != end() && !comp(value, *it)) {
+            return it;
         }
-        return end(); // Not found
+        return end();
     }
 
     const_iterator find(const value_type& value) const {
         const_iterator it = lower_bound(value);
-        if (it != end() && !comp(value, *it) && !comp(*it, value)) {
-            return it; // Found the element
+        if (it != end() && !comp(value, *it)) {
+            return it;
         }
-        return end(); // Not found
+        return end();
     }
 
     /**
@@ -259,10 +256,6 @@ public:
         return std::equal_range(data.begin(), data.end(), value, comp);
     }
 
-
-    // --- Observers ---
-    value_compare value_comp() const { return comp; }
-
     // --- Iterators ---
     iterator begin() noexcept { return data.begin(); }
     const_iterator begin() const noexcept { return data.begin(); }
@@ -279,9 +272,4 @@ public:
     reverse_iterator rend() noexcept { return data.rend(); }
     const_reverse_iterator rend() const noexcept { return data.rend(); }
     const_reverse_iterator crend() const noexcept { return data.crend(); }
-
-
-    void swap(VectorSet& lhs, VectorSet& rhs) noexcept {
-        lhs.swap(rhs);
-    }
 };

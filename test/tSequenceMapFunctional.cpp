@@ -192,3 +192,10 @@ TEST_F(SequenceMapFunctionalTest, IteratorAlgorithmsWork) {
     ASSERT_NE(it, map.end());
     EXPECT_EQ(it->first, "two");
 }
+
+TEST_F(SequenceMapFunctionalTest, IteratorMutability) {
+    auto beg = map.begin();
+    beg->second = 8;
+
+    EXPECT_EQ(map("one"), 8);
+}

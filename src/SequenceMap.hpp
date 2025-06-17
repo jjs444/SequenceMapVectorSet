@@ -7,8 +7,6 @@
 #include <initializer_list> 
 #include <iterator>
 
-#include <boost/pool/object_pool.hpp>
-
 #include "detail/InPlaceKeyExtract.hpp"  
 #include "detail/SequenceMapIterator.hpp"  
 
@@ -25,54 +23,24 @@ public:
     using pointer = value_type*;
     using const_pointer = const value_type*;
 
-    using iterator = detail::SequenceMapIterator<key_type, mapped_type, typename std::vector<pointer>::iterator>;
-    using const_iterator = detail::SequenceMapIterator<key_type, mapped_type, typename std::vector<pointer>::const_iterator>;
+    using iterator = detail::SequenceMapIterator<key_type, mapped_type, typename std::vector<value_type>::iterator>;
+    using const_iterator = detail::SequenceMapIterator<key_type, mapped_type, typename std::vector<value_type>::const_iterator>;
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-    SequenceMap() : pool_( std::make_unique<boost::object_pool<value_type>>()){};
+    SequenceMap() = default;
     ~SequenceMap() = default;
     SequenceMap(SequenceMap&& other) noexcept = default;
     SequenceMap& operator=(SequenceMap&& other) noexcept = default;
-
-     /**
-     * @brief Copy constructor. Constructs a SequenceMap with a deep copy of the contents of 'other'.
-     * Allocates new memory for copied elements using the pool.
-     * @param other Another SequenceMap object to copy.
-     */
-    SequenceMap(const SequenceMap& other)
-        : pool_(std::make_unique<boost::object_pool<value_type>>()) // Initialize our own object pool
-    {
-        data_.reserve(other.size()); // Pre-allocate vector storage
-        for (const auto& other_ptr : other.data_) {
-            // Construct a new value_type object in memory allocated by our pool
-            // using the copy constructor of value_type.
-            pointer new_ptr = pool_->construct(*other_ptr);
-            data_.emplace_back(new_ptr);
-        }
-        rebuild_all_indices(); // Rebuild the map based on new indices
-    }
-
-    /**
-     * @brief Copy assignment operator. Replaces the contents with a deep copy of the contents of 'other'.
-     * Uses the copy-and-swap idiom for strong exception guarantee.
-     * @param other Another SequenceMap object to copy.
-     * @return A reference to *this.
-     */
-    SequenceMap& operator=(const SequenceMap& other) {
-        if (this != &other) {
-            SequenceMap temp(other);
-            *this = std::move(temp);
-        }
-        return *this;
-    }
+    SequenceMap(const SequenceMap& other) = default;
+    SequenceMap& operator=(const SequenceMap& other) = default;
 
     /**
      * @brief Initializer list constructor. Constructs a SequenceMap with the contents
      * of the initializer list. Elements are inserted in the order they appear.
      * @param init An initializer_list of key-value pairs.
      */
-    SequenceMap(std::initializer_list<value_type> init) : pool_(std::make_unique<boost::object_pool<value_type>>()) {
+    SequenceMap(std::initializer_list<value_type> init){
         for (auto&& pair : init) {
             emplace_back(std::move(pair));
         }
@@ -90,7 +58,7 @@ public:
         if (index >= data_.size()) {
             throw std::out_of_range("SequenceMap::atIdx(index): index out of bounds");
         }
-        return *data_[index];
+        return data_[index];
     }
 
     /**
@@ -104,7 +72,7 @@ public:
         if (index >= data_.size()) {
             throw std::out_of_range("SequenceMap::atIdx(index) const: index out of bounds");
         }
-        return *data_[index];
+        return data_[index];
     }
 
     /**
@@ -119,7 +87,7 @@ public:
         if (it == key_to_index_.end()) {
             throw std::out_of_range("SequenceMap::atKey(key): key not found");
         }
-        return data_[it->second]->second;
+        return data_[it->second].second;
     }
 
     /**
@@ -134,7 +102,7 @@ public:
         if (it == key_to_index_.end()) {
             throw std::out_of_range("SequenceMap::atKey(key) const: key not found");
         }
-        return data_[it->second]->second;
+        return data_[it->second].second;
     }
 
     /**
@@ -145,7 +113,7 @@ public:
      * @complexity O(1).
      */
     reference operator[](size_type index) {
-        return *data_[index];
+        return data_[index];
     }
 
     /**
@@ -156,7 +124,7 @@ public:
      * @complexity O(1).
      */
     const_reference operator[](size_type index) const {
-        return *data_[index];
+        return data_[index];
     }
 
     /**
@@ -170,13 +138,11 @@ public:
     mapped_type& operator()(const key_type& key) {
         auto keyIdxEmp = key_to_index_.emplace(key, data_.size());
         if (!keyIdxEmp.second) {
-            return data_[keyIdxEmp.first->second]->second;
+            return data_[keyIdxEmp.first->second].second;
         }
         else {
-            auto new_ptr = pool_->malloc();
-            new (new_ptr) value_type(key, mapped_type{});
-            data_.emplace_back(new_ptr);
-            return data_.back()->second;
+            data_.emplace_back(key, mapped_type{});
+            return data_.back().second;
         }
     }
 
@@ -187,7 +153,7 @@ public:
      * @complexity O(1)
      */
     reference back() {
-        return *data_.back();
+        return data_.back();
     }
 
     /**
@@ -197,7 +163,7 @@ public:
      * @complexity O(1)
      */
     const_reference back() const {
-        return *data_.back();
+        return data_.back();
     }
 
     /**
@@ -207,7 +173,7 @@ public:
      * @complexity O(1)
      */
     reference front() {
-        return *data_.front();
+        return data_.front();
     }
 
     /**
@@ -217,7 +183,7 @@ public:
      * @complexity O(1)
      */
     const_reference front() const {
-        return *data_.front();
+        return data_.front();
     }
 
     // --- Modifiers ---
@@ -272,21 +238,16 @@ public:
             if (!keyIdxEmp.second) {
                 return { iterator(data_.begin() + keyIdxEmp.first->second), false };
             }
-            auto new_ptr = pool_->malloc();
-            new (new_ptr) value_type(std::forward<Args>(args)...);
-            data_.emplace_back(new_ptr);
+            data_.emplace_back(std::forward<Args>(args)...);
             return { iterator(data_.end() - 1), true };
         }
         else {
             value_type temp_val(std::forward<Args>(args)...);
-            key_type key = temp_val.first;
-            auto keyIdxEmp = key_to_index_.emplace(key, data_.size());
+            auto keyIdxEmp = key_to_index_.emplace(temp_val.first, data_.size());
             if (!keyIdxEmp.second) {
                 return { iterator(data_.begin() + keyIdxEmp.first->second), false };
             }
-            auto new_ptr = pool_->malloc();
-            new (new_ptr) value_type(std::move(key), std::move(temp_val.second));
-            data_.emplace_back(new_ptr);
+            data_.emplace_back(value_type(temp_val.first, std::move(temp_val.second)));
             return { iterator(data_.end() - 1), true };
         }
     }
@@ -304,19 +265,29 @@ public:
             return end(); // Cannot erase end iterator
         }
         auto const index_to_erase = std::distance(data_.begin(), pos.current_it_);
-        auto const key_to_remove = pos->first; // Get key before pos is invalidated
-        pointer ptr_to_destroy = *pos.current_it_; // Get the raw pointer to the object
 
-        // Erase from underlying vector. next_vec_it will point to the element after the removed one.
-        auto const& next_vec_it = data_.erase(pos.current_it_);
-        pool_->destroy(ptr_to_destroy);
+       // Build a new vector with the same capacity, skipping the erased element
+        std::vector<value_type> new_data;
+        new_data.reserve(data_.size() - 1);
 
-        key_to_index_.erase(key_to_remove); // Erase from the map.
+        for (size_t i = 0; i < data_.size(); ++i) {
+            if (i == index_to_erase) {
+                key_to_index_.erase(data_[i].first); // Erase from the map.
+                continue; // Skip the erased element
+            }
 
-        // Update indices in the map for all elements that have shifted.
+            new_data.emplace_back(data_[i].first, std::move(data_[i].second));
+        }
+
+        data_ = std::move(new_data);
+
         update_indices_from(index_to_erase);
 
-        return iterator(next_vec_it); // Return our custom iterator
+        if (index_to_erase >= data_.size()) {
+            return end();
+        }
+
+        return iterator(data_.begin() + index_to_erase);
     }
 
     /**
@@ -332,23 +303,31 @@ public:
             return first;
         }
 
-        auto first_it = first.current_it_;
-        auto last_it = last.current_it_;
-        size_type start_idx = std::distance(data_.begin(), first_it);
-        size_type count = std::distance(first_it, last_it);
+        auto const start_idx = std::distance(data_.begin(), first.current_it_);
+        auto const end_idx = std::distance(data_.begin(), last.current_it_);
 
-        // Remove and destroy in a single pass
-        for (auto it = first_it; it != last_it; ++it) {
-            pointer ptr = *it;
-            key_to_index_.erase(ptr->first);
-            pool_->destroy(ptr);
+        std::vector<value_type> new_data;
+        new_data.reserve(data_.size() - (end_idx - start_idx));
+
+        for (size_type i = 0; i < data_.size(); ++i) {
+            if (i >= start_idx && i < end_idx) {
+                key_to_index_.erase(data_[i].first);
+                continue; 
+            }
+
+            new_data.emplace_back(data_[i].first, std::move(data_[i].second));
         }
 
-        auto next_it = data_.erase(first_it, last_it);
+        data_ = std::move(new_data);
 
         update_indices_from(start_idx);
 
-        return iterator(next_it);
+        // If erase went to the end, return end()
+        if (end_idx >= data_.size() + end_idx - start_idx) {
+            return end();
+        }
+
+        return iterator(data_.begin() + start_idx);
     }
 
     /**
@@ -364,8 +343,7 @@ public:
         if (it == key_to_index_.end()) {
             return 0; // Key not found
         }
-        size_type index_to_erase = it->second;
-        erase(iterator(data_.begin() + index_to_erase));
+        erase(iterator(data_.begin() + it->second));
         return 1;
     }
 
@@ -375,12 +353,8 @@ public:
      * @complexity O(1).
      */
     void pop_back() {
-        auto ptr_to_remove = data_.back();
-
-        key_to_index_.erase(ptr_to_remove->first);
+        key_to_index_.erase(data_.back().first);
         data_.pop_back();
-        
-        pool_->destroy(ptr_to_remove); 
     }
 
 
@@ -391,12 +365,6 @@ public:
     void clear() noexcept {
         data_.clear();
         key_to_index_.clear();
-        for (pointer p : data_) {
-            // Destroy the object and return its memory to the pool.
-            // boost::object_pool::destroy() handles both calling the destructor
-            // and freeing the memory block.
-            pool_->destroy(p);
-        }
     }
 
     // --- Capacity ---
@@ -533,19 +501,13 @@ public:
 
     private:
 
-    std::unique_ptr<boost::object_pool<value_type>> pool_;
 
-    std::vector<pointer> data_;
+    std::vector<value_type> data_;
     std::unordered_map<key_type, size_type> key_to_index_;
 
     void update_indices_from(size_type start_index) {
         for (size_type i = start_index; i < data_.size(); ++i) {
-            key_to_index_[data_[i]->first] = i;
+            key_to_index_[data_[i].first] = i;
         }
-    }
-
-    void rebuild_all_indices() {
-        key_to_index_.clear();
-        update_indices_from(0);
     }
 };

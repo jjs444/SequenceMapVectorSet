@@ -28,7 +28,7 @@ benchmarks.json
 *.out
 
 # CMake-generated IDE files
-CMakeSettings.json
+*.json
 
 # VS Code
 .vscode/

@@ -25,14 +25,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(benchmark)
 
-# ---- Boost (Header-only) ----
-FetchContent_Declare(
-  boost_pool
-  GIT_REPOSITORY https://github.com/boostorg/pool.git
-  GIT_TAG master
-)
-FetchContent_MakeAvailable(boost_pool)
-
 # --- SubDirectories ---
 add_subdirectory(src)
 add_subdirectory(test)

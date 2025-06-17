@@ -1,0 +1,41 @@
+name: Run All Tests (Including Perf)
+
+on:
+  push:
+    branches:
+      - '*'
+  pull_request:
+    branches:
+      - '*'
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential
+
+      - name: Configure CMake
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Run tests
+        run:  ctest --test-dir build -R "^(smvs_unit_tests)$" --output-on-failure
+
+      - name: Run Benchmarks
+        run: ./build/perf_test/SequenceMapVectorSetPerf --benchmark_out=benchmarks.json --benchmark_out_format=json
+
+      - name: Upload Benchmark Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmarks
+          path: benchmarks.json

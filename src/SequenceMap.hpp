@@ -6,6 +6,7 @@
 #include <stdexcept>  
 #include <initializer_list> 
 #include <iterator>
+#include <optional>
 
 #include "detail/SequenceMapIterator.hpp"
 #include "detail/Utilities.hpp"  
@@ -254,6 +255,54 @@ public:
     }
 
     /**
+     * @brief Inserts an element at the given position if the key does not already exist.
+     * Shifts elements to the right. Invalidates iterators at or after pos.
+     * @param pos Iterator position to insert before.
+     * @param value The value_type (pair<const K, V>) to insert.
+     * @return A pair of (iterator to element, true if inserted).
+    */
+    std::pair<iterator, bool> insert(const_iterator pos, const value_type& value) {
+        return insert_impl(pos, value);
+    }
+
+    /**
+     * @brief Rvalue overload for inserting at a specific position.
+     */
+    std::pair<iterator, bool> insert(const_iterator pos, value_type&& value) {
+        return insert_impl(pos, std::move(value));
+    }
+
+
+    /**
+     * @brief Inserts a range of elements at the given position, skipping duplicates.
+     * @param pos Iterator position to insert before.
+     * @param first Beginning of input range.
+     * @param last End of input range.
+     * @return A pair (iterator to first inserted element, count of elements inserted).
+     */
+    template <typename InputIt>
+    std::pair<iterator, size_t> insert(const_iterator pos, InputIt first, InputIt last) {
+        size_t inserted_count = 0;
+        std::optional<size_t> result_idx;
+
+        for (; first != last; ++first) {
+            auto [it, inserted] = insert(pos, *first);
+            if (inserted) {
+                ++inserted_count;
+                if (!result_idx) {
+                    result_idx = std::distance(data_.begin(), it.current_it_); // capture first successful insert
+                }
+                // Advance position for next insert
+                pos = it;
+                ++pos;
+            }
+        }
+
+        return { result_idx ? iterator(data_.begin() + *result_idx) : end(), inserted_count };
+    }
+
+
+    /**
      * @brief Erases the element at the specified position.
      * @param pos An iterator to the element to erase.
      * @return An iterator pointing to the element immediately following the erased element.
@@ -491,5 +540,33 @@ public:
 
     std::vector<value_type> data_;
     std::unordered_map<key_type, size_type> key_to_index_;
+
+
+    template <typename T>
+    std::pair<iterator, bool> insert_impl(const_iterator pos, T&& value) {
+        const key_type& key = value.first;
+
+        auto existing = key_to_index_.find(key);
+        if (existing != key_to_index_.end()) {
+            return { iterator(data_.begin() + existing->second), false };
+        }
+
+        const size_t insert_pos = std::distance(data_.cbegin(), pos.current_it_);
+
+        // Grow the container by one
+        data_.emplace_back(); // Placeholder at the end
+
+        // Shift elements right one slot from insert_pos to end()-2
+        for (size_t i = data_.size() - 1; i > insert_pos; --i) {
+            detail::reconstruct_element_in_place(data_, key_to_index_, i, i-1);
+        }
+
+        // Now insert the new value in-place at insert_pos
+        data_[insert_pos].~value_type();
+        new (&data_[insert_pos]) value_type(std::forward<T>(value));
+        key_to_index_[key] = insert_pos;
+
+        return { iterator(data_.begin() + insert_pos), true };
+    }
 
 };

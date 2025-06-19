@@ -60,14 +60,17 @@ namespace detail {
         bool operator!=(const SequenceMapIterator& other) const {
             return current_it_ != other.current_it_;
         }
-
+        
     private:
         VecIter current_it_;
 
-        friend class SequenceMap<K, V>;
+        friend class SequenceMap<K,V>;
+
+        // Needed for conversion operator
+        template <typename, typename, typename>
+        friend class SequenceMapIterator;
 
         // Private constructor for use by SequenceMap
         SequenceMapIterator(VecIter it) : current_it_(it) {}
-
     };
 }

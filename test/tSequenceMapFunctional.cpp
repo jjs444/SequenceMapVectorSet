@@ -199,3 +199,72 @@ TEST_F(SequenceMapFunctionalTest, IteratorMutability) {
 
     EXPECT_EQ(map("one"), 8);
 }
+
+TEST_F(SequenceMapFunctionalTest, IteratorConversion) {
+    auto cBeg = SequenceMap<std::string, int>::const_iterator(map.begin());
+
+    EXPECT_EQ(cBeg, map.begin());
+}
+
+
+TEST_F(SequenceMapFunctionalTest, InsertSingleAtPositionInsertsNewKey) {
+    auto it = map.find("two");
+    ASSERT_NE(it, map.end());
+    auto pos = ++map.begin();
+
+    auto [inserted_it, inserted] = map.insert(pos, std::make_pair<const std::string, int>(std::string("four"), 4));
+    EXPECT_TRUE(inserted);
+    EXPECT_EQ(inserted_it->first, "four");
+    EXPECT_EQ(inserted_it->second, 4);
+    EXPECT_EQ(map.size(), 4);
+
+    // "four" should be at index 1 now, shifting "two" and "three" right
+    EXPECT_EQ(map.atIdx(1).first, "four");
+    EXPECT_EQ(map.atIdx(2).first, "two");
+    EXPECT_EQ(map.atIdx(3).first, "three");
+}
+
+TEST_F(SequenceMapFunctionalTest, InsertSingleAtPositionRejectsDuplicateKey) {
+    auto pos = ++map.begin();
+    auto [it, inserted] = map.insert(pos, std::make_pair(std::string("two"), 22));
+    EXPECT_FALSE(inserted);
+    EXPECT_EQ(it->first, "two");
+    EXPECT_EQ(it->second, 2); // original value unchanged
+    EXPECT_EQ(map.size(), 3);
+}
+
+TEST_F(SequenceMapFunctionalTest, InsertRangeInsertsOnlyUniqueKeys) {
+    std::vector<std::pair<std::string, int>> to_insert{
+        {"zero", 0},
+        {"two", 22},   // duplicate, should be skipped
+        {"four", 4},
+        {"five", 5},
+    };
+
+    auto pos = ++map.begin();
+    auto [first_inserted_it, inserted_count] = map.insert(pos, to_insert.begin(), to_insert.end());
+
+    EXPECT_EQ(inserted_count, 3);
+    EXPECT_EQ(first_inserted_it->first, "zero");
+    EXPECT_EQ(map.size(), 6);
+
+    // Check insertion order at indices 1, 2, 3 matches inserted unique keys
+    EXPECT_EQ(map.atIdx(1).first, "zero");
+    EXPECT_EQ(map.atIdx(2).first, "four");
+    EXPECT_EQ(map.atIdx(3).first, "five");
+}
+
+TEST_F(SequenceMapFunctionalTest, InsertRangeReturnsEndIteratorIfNoInsertions) {
+    std::vector<std::pair<std::string, int>> duplicates{
+        {"one", 10},
+        {"two", 20},
+        {"three", 30},
+    };
+
+    auto pos = map.begin();
+    auto [it, count] = map.insert(pos, duplicates.begin(), duplicates.end());
+
+    EXPECT_EQ(count, 0);
+    EXPECT_EQ(it, map.end());
+    EXPECT_EQ(map.size(), 3);
+}

@@ -250,3 +250,51 @@ static void BM_Vector_PopBack(benchmark::State& state) {
 }
 BENCHMARK(BM_Vector_PopBack)->RangeMultiplier(kRangeMult)->Range(kTestMinSize, kTestMaxSize);
 
+static void BM_SequenceMap_InsertAtPosition(benchmark::State& state) {
+    const auto keys = GenerateKeys(state.range(0));
+    for (auto _ : state) {
+        state.PauseTiming();
+        SequenceMap<std::string, size_t> map;
+        // Pre-fill half the elements
+        for (size_t i = 0; i < keys.size() / 2; ++i) {
+            map.push_back({ keys[i], i });
+        }
+        state.ResumeTiming();
+
+
+        // Insert second half at middle repeatedly
+        for (size_t i = keys.size() / 2; i < keys.size(); ++i) {
+            state.PauseTiming();
+            auto insert_pos = std::next(map.begin(), map.size()/2);
+            state.ResumeTiming();
+
+            map.insert(insert_pos, { keys[i], i });
+        }
+        benchmark::DoNotOptimize(map);
+    }
+}
+BENCHMARK(BM_SequenceMap_InsertAtPosition)->RangeMultiplier(kRangeMult)->Range(kTestMinSize, kTestMaxSize);
+
+static void BM_Vector_InsertAtPosition(benchmark::State& state) {
+    const auto keys = GenerateKeys(state.range(0));
+    for (auto _ : state) {
+        state.PauseTiming();
+        std::vector<std::pair<std::string, size_t>> vec;
+        // Pre-fill half the elements
+        for (size_t i = 0; i < keys.size() / 2; ++i) {
+            vec.emplace_back(keys[i], i);
+        }
+        state.ResumeTiming();
+
+        // Insert second half at middle repeatedly
+        for (size_t i = keys.size() / 2; i < keys.size(); ++i) {
+            state.PauseTiming();
+            auto insert_pos = vec.begin() + vec.size() / 2;
+            state.ResumeTiming();
+
+            vec.insert(insert_pos, { keys[i], i });
+        }
+        benchmark::DoNotOptimize(vec);
+    }
+}
+BENCHMARK(BM_Vector_InsertAtPosition)->RangeMultiplier(kRangeMult)->Range(kTestMinSize, kTestMaxSize);

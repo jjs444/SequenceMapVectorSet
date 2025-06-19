@@ -7,8 +7,8 @@
 #include <initializer_list> 
 #include <iterator>
 
-#include "detail/InPlaceKeyExtract.hpp"  
-#include "detail/SequenceMapIterator.hpp"  
+#include "detail/SequenceMapIterator.hpp"
+#include "detail/Utilities.hpp"  
 
 template <typename K, typename V>
 class SequenceMap {
@@ -40,11 +40,26 @@ public:
      * of the initializer list. Elements are inserted in the order they appear.
      * @param init An initializer_list of key-value pairs.
      */
-    SequenceMap(std::initializer_list<value_type> init){
+    SequenceMap(std::initializer_list<value_type> init) {
         for (auto&& pair : init) {
             emplace_back(std::move(pair));
         }
     }
+
+    /**
+     * @brief Range constructor. Constructs a SequenceMap with elements from the given range.
+     * Elements are inserted in the order they appear in the input range.
+     * @tparam InputIt A valid input iterator type for a range of key-value pairs.
+     * @param first Iterator to the beginning of the range.
+     * @param last Iterator to the end of the range.
+     */
+    template <typename InputIt>
+    SequenceMap(InputIt first, InputIt last) {
+        for (auto it = first; it != last; ++it) {
+            emplace_back(*it);
+        }
+    }
+
     // --- Element Access ---
 
     /**
@@ -55,10 +70,7 @@ public:
      * @complexity O(1).
      */
     reference atIdx(size_type index) {
-        if (index >= data_.size()) {
-            throw std::out_of_range("SequenceMap::atIdx(index): index out of bounds");
-        }
-        return data_[index];
+        return detail::at_idx_impl<reference>(data_, index);
     }
 
     /**
@@ -69,10 +81,7 @@ public:
      * @complexity O(1).
      */
     const_reference atIdx(size_type index) const {
-        if (index >= data_.size()) {
-            throw std::out_of_range("SequenceMap::atIdx(index) const: index out of bounds");
-        }
-        return data_[index];
+        return detail::at_idx_impl<const_reference>(data_, index);
     }
 
     /**
@@ -83,11 +92,7 @@ public:
      * @complexity Average O(1), Worst O(N) due to hash collisions.
      */
     mapped_type& atKey(const key_type& key) {
-        auto it = key_to_index_.find(key);
-        if (it == key_to_index_.end()) {
-            throw std::out_of_range("SequenceMap::atKey(key): key not found");
-        }
-        return data_[it->second].second;
+        return detail::at_key_impl<mapped_type&>(key_to_index_, data_, key);
     }
 
     /**
@@ -98,11 +103,7 @@ public:
      * @complexity Average O(1), Worst O(N) due to hash collisions.
      */
     const mapped_type& atKey(const key_type& key) const {
-        auto it = key_to_index_.find(key);
-        if (it == key_to_index_.end()) {
-            throw std::out_of_range("SequenceMap::atKey(key) const: key not found");
-        }
-        return data_[it->second].second;
+        return detail::at_key_impl<const mapped_type&>(key_to_index_, data_, key);
     }
 
     /**
@@ -266,22 +267,17 @@ public:
         }
         auto const index_to_erase = std::distance(data_.begin(), pos.current_it_);
 
-       // Build a new vector with the same capacity, skipping the erased element
-        std::vector<value_type> new_data;
-        new_data.reserve(data_.size() - 1);
+        // Remove key from map
+        key_to_index_.erase(data_[index_to_erase].first);
 
-        for (size_t i = 0; i < data_.size(); ++i) {
-            if (i == index_to_erase) {
-                key_to_index_.erase(data_[i].first); // Erase from the map.
-                continue; // Skip the erased element
-            }
-
-            new_data.emplace_back(data_[i].first, std::move(data_[i].second));
+        // Shift elements left to fill the gap. Can't call vector::erase because the 
+        // std::pair<const K, V> value type cannot be moved.
+        for (size_t i = index_to_erase + 1; i < data_.size(); ++i) {
+            detail::reconstruct_element_in_place(data_, key_to_index_, i - 1, i);
         }
 
-        data_ = std::move(new_data);
-
-        update_indices_from(index_to_erase);
+        // Remove the last element (now duplicated)
+        data_.pop_back();
 
         if (index_to_erase >= data_.size()) {
             return end();
@@ -306,24 +302,24 @@ public:
         auto const start_idx = std::distance(data_.begin(), first.current_it_);
         auto const end_idx = std::distance(data_.begin(), last.current_it_);
 
-        std::vector<value_type> new_data;
-        new_data.reserve(data_.size() - (end_idx - start_idx));
-
-        for (size_type i = 0; i < data_.size(); ++i) {
-            if (i >= start_idx && i < end_idx) {
-                key_to_index_.erase(data_[i].first);
-                continue; 
-            }
-
-            new_data.emplace_back(data_[i].first, std::move(data_[i].second));
+        // Erase keys in the range from the index
+        for (size_t i = start_idx; i < end_idx; ++i) {
+            key_to_index_.erase(data_[i].first);
         }
 
-        data_ = std::move(new_data);
+        // Move elements down to fill the gap
+        auto const shift_count = end_idx - start_idx;
+        auto const new_size = data_.size() - shift_count;
 
-        update_indices_from(start_idx);
+        for (size_t i = end_idx; i < data_.size(); ++i) {
+            detail::reconstruct_element_in_place(data_, key_to_index_, i - shift_count, i);
+        }
+
+        // Remove the now-duplicate trailing elements
+        data_.resize(new_size);
 
         // If erase went to the end, return end()
-        if (end_idx >= data_.size() + end_idx - start_idx) {
+        if (start_idx >= data_.size()) {
             return end();
         }
 
@@ -430,11 +426,7 @@ public:
      * @complexity Average O(1), Worst O(N) due to hash collisions.
      */
     iterator find(const key_type& key) {
-        auto it = key_to_index_.find(key);
-        if (it == key_to_index_.end()) {
-            return end();
-        }
-        return iterator(data_.begin() + it->second);
+        return iterator(detail::find_impl(key, key_to_index_, data_.begin(), data_.end()));
     }
 
     /**
@@ -444,11 +436,7 @@ public:
      * @complexity Average O(1), Worst O(N) due to hash collisions.
      */
     const_iterator find(const key_type& key) const {
-        auto it = key_to_index_.find(key);
-        if (it == key_to_index_.end()) {
-            return cend();
-        }
-        return const_iterator(data_.cbegin() + it->second);
+        return const_iterator(detail::find_impl(key, key_to_index_, data_.cbegin(), data_.cend()));
     }
 
     iterator begin() noexcept {
@@ -501,13 +489,7 @@ public:
 
     private:
 
-
     std::vector<value_type> data_;
     std::unordered_map<key_type, size_type> key_to_index_;
 
-    void update_indices_from(size_type start_index) {
-        for (size_type i = start_index; i < data_.size(); ++i) {
-            key_to_index_[data_[i].first] = i;
-        }
-    }
 };

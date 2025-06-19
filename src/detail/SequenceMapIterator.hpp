@@ -10,7 +10,7 @@ namespace detail {
     class SequenceMapIterator {
     public:
         // Iterator traits (required for standard library compatibility)
-        using iterator_category = std::bidirectional_iterator_tag;
+        using iterator_category = std::random_access_iterator_tag;
         using value_type = typename std::iterator_traits<VecIter>::value_type;
         using difference_type = typename std::iterator_traits<VecIter>::difference_type;
         using pointer = typename std::iterator_traits<VecIter>::pointer;
@@ -51,6 +51,44 @@ namespace detail {
             SequenceMapIterator temp = *this;
             --(*this);
             return temp;
+        }
+
+        SequenceMapIterator operator+(difference_type n) const {
+            return SequenceMapIterator(current_it_ + n);
+        }
+
+        SequenceMapIterator& operator+=(difference_type n) {
+            current_it_ += n;
+            return *this;
+        }
+
+        SequenceMapIterator operator-(difference_type n) const {
+            return SequenceMapIterator(current_it_ - n);
+        }
+
+        SequenceMapIterator& operator-=(difference_type n) {
+            current_it_ -= n;
+            return *this;
+        }
+
+        difference_type operator-(const SequenceMapIterator& other) const {
+            return current_it_ - other.current_it_;
+        }
+
+        bool operator<(const SequenceMapIterator& other) const {
+            return current_it_ < other.current_it_;
+        }
+
+        bool operator>(const SequenceMapIterator& other) const {
+            return current_it_ > other.current_it_;
+        }
+
+        bool operator<=(const SequenceMapIterator& other) const {
+            return current_it_ <= other.current_it_;
+        }
+
+        bool operator>=(const SequenceMapIterator& other) const {
+            return current_it_ >= other.current_it_;
         }
 
         bool operator==(const SequenceMapIterator& other) const {

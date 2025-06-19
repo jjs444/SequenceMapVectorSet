@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <algorithm>
 #include "../src/SequenceMap.hpp"
 
 class SequenceMapFunctionalTest : public ::testing::Test {
@@ -204,6 +205,36 @@ TEST_F(SequenceMapFunctionalTest, IteratorConversion) {
     auto cBeg = SequenceMap<std::string, int>::const_iterator(map.begin());
 
     EXPECT_EQ(cBeg, map.begin());
+}
+
+TEST_F(SequenceMapFunctionalTest, IteratorPlusMinusOperator) {
+    auto it = map.begin();
+
+    auto it2 = it + 2;
+    EXPECT_EQ(it2->first, "three");
+
+    auto it3 = it2 - 2;
+    EXPECT_EQ(it3->first, "one");
+}
+
+TEST_F(SequenceMapFunctionalTest, IteratorPlusMinusEqualsOperator) {
+    auto it = map.end() - 1;
+    EXPECT_EQ(it->first, "three");
+
+    it -= 2;
+    EXPECT_EQ(it->first, "one");
+
+    it += 2;
+    EXPECT_EQ(it->first, "three");
+}
+
+TEST_F(SequenceMapFunctionalTest, IteratorDifferenceComputesCorrectDistance) {
+    auto begin = map.begin();
+    auto end = map.end();
+
+    EXPECT_EQ(end - begin, map.size());
+    EXPECT_EQ((begin + 1) - begin, 1);
+    EXPECT_EQ((begin + 2) - (begin + 1), 1);
 }
 
 

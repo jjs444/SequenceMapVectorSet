@@ -388,7 +388,21 @@ public:
         if (it == key_to_index_.end()) {
             return 0; // Key not found
         }
-        erase(iterator(data_.begin() + it->second));
+
+        auto const index_to_erase = it->second;
+
+        // Remove key from map
+        key_to_index_.erase(it);
+
+        // Shift elements left to fill the gap. Can't call vector::erase because the 
+        // std::pair<const K, V> value type cannot be moved.
+        for (size_t i = index_to_erase + 1; i < data_.size(); ++i) {
+            detail::reconstruct_element_in_place(data_, key_to_index_, i - 1, i);
+        }
+
+        // Remove the last element (now duplicated)
+        data_.pop_back();
+
         return 1;
     }
 
